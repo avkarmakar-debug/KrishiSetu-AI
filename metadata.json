@@ -1,0 +1,6 @@
+{
+  "name": "KrishiSetu",
+  "description": "Talk. Snap. Save your crop. A voice-first AI crop-health companion for smallholder farmers with human-agronomist verification.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
