@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { requestTtsAudio } from '../services/api';
+import { ApiRequestError, requestTtsAudio } from '../services/api';
 import type { Language } from '../types';
 
 const ttsCache = new Map<string, string>();
+let ttsServerCooldownUntil = 0;
 
 const SPEECH_LANG_CODES: Record<Language, string> = {
   bn: 'bn-BD',
@@ -117,6 +118,10 @@ export function useVoicePlayback(): VoicePlaybackState {
       try {
         let dataUrl = ttsCache.get(cacheKey);
         if (!dataUrl) {
+          if (Date.now() < ttsServerCooldownUntil) {
+            fallbackBrowserSpeak(text, language, id, token);
+            return;
+          }
           const result = await requestTtsAudio(text, language);
           dataUrl = `data:${result.mimeType};base64,${result.audioBase64}`;
           ttsCache.set(cacheKey, dataUrl);
@@ -145,7 +150,10 @@ export function useVoicePlayback(): VoicePlaybackState {
         };
 
         await audio.play();
-      } catch {
+      } catch (err: unknown) {
+        if (err instanceof ApiRequestError && (err.status === 402 || err.status === 429)) {
+          ttsServerCooldownUntil = Date.now() + 60_000;
+        }
         if (requestCounterRef.current !== token) return;
         fallbackBrowserSpeak(text, language, id, token);
       }

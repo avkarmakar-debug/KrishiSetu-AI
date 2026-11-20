@@ -162,6 +162,7 @@ export function FarmerChatHome({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | undefined>(undefined);
@@ -249,6 +250,8 @@ export function FarmerChatHome({
     dataUrl: string;
     durationSec: number;
   }) => {
+    if (isSubmittingRef.current) return;
+
     const finalAudioB64 = overrideAudio?.base64 ?? audioBase64;
     const finalAudioMime = overrideAudio?.mimeType ?? audioMimeType;
     const finalAudioUrl = overrideAudio?.dataUrl ?? audioDataUrl;
@@ -259,6 +262,7 @@ export function FarmerChatHome({
       return;
     }
 
+    isSubmittingRef.current = true;
     setErrorMsg(null);
     setIsSending(true);
     scrollToBottom();
@@ -330,6 +334,7 @@ export function FarmerChatHome({
           : 'Could not reach KrishiSetu right now. Please tap Send again.'
       );
     } finally {
+      isSubmittingRef.current = false;
       setIsSending(false);
     }
   };

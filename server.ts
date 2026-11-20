@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
+  classifyGeminiError,
   diagnoseCrop,
   synthesizeSpeech,
   type DiagnoseInput,
@@ -53,25 +54,21 @@ async function startServer() {
 
       res.json(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unexpected server error';
-      console.error('[KrishiSetu /api/diagnose error]:', message);
+      const classified = classifyGeminiError(err);
+      console.error(
+        `[KrishiSetu /api/diagnose error] (${classified.category}, HTTP ${classified.httpStatus}):`,
+        classified.rawMessage
+      );
 
-      let statusCode = 502;
-      let userMessage = 'Could not reach the crop advisor right now. Please tap Try Again.';
-
-      if (message.includes('GEMINI_API_KEY') || message.includes('API_KEY_INVALID') || message.includes('403')) {
-        statusCode = 500;
-        userMessage =
-          'The AI advisor key is not configured yet. Please check Settings > Secrets in AI Studio.';
-      } else if (message.includes('429') || message.includes('RESOURCE_EXHAUSTED')) {
-        statusCode = 429;
-        userMessage = 'Too many crop checks at once. Please wait a few seconds and tap Try Again.';
+      if (classified.retryAfterSec) {
+        res.setHeader('Retry-After', String(classified.retryAfterSec));
       }
 
-      res.status(statusCode).json({
-        error: userMessage,
-        details: message,
-        retryable: statusCode !== 500,
+      res.status(classified.httpStatus).json({
+        error: classified.userMessage,
+        code: classified.category,
+        retryAfterSec: classified.retryAfterSec,
+        retryable: classified.retryable,
       });
     }
   });
@@ -93,9 +90,15 @@ async function startServer() {
       const audio = await synthesizeSpeech(text.trim(), lang);
       res.json(audio);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'TTS generation failed';
-      console.error('[KrishiSetu /api/tts error]:', message);
-      res.status(502).json({ error: 'Voice playback unavailable via Gemini TTS.', details: message });
+      const classified = classifyGeminiError(err);
+      console.error(
+        `[KrishiSetu /api/tts error] (${classified.category}, HTTP ${classified.httpStatus}):`,
+        classified.rawMessage
+      );
+      res.status(classified.httpStatus).json({
+        error: 'Voice playback unavailable via Gemini TTS.',
+        code: classified.category,
+      });
     }
   });
 

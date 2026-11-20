@@ -46,6 +46,7 @@ export function NewCaseView({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | undefined>(undefined);
@@ -199,6 +200,8 @@ export function NewCaseView({
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) return;
+
     if (isRecording) {
       stopRecording();
       return;
@@ -209,6 +212,7 @@ export function NewCaseView({
       return;
     }
 
+    isSubmittingRef.current = true;
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -257,6 +261,7 @@ export function NewCaseView({
           : 'Could not check your crop right now. Please tap Try Again.'
       );
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

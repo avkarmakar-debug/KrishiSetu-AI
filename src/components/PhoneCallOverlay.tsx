@@ -123,6 +123,7 @@ export function PhoneCallOverlay({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const isAnalyzingRef = useRef(false);
 
   const [callSeconds, setCallSeconds] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -183,6 +184,8 @@ export function PhoneCallOverlay({
     overridePhotoMime?: string;
     overridePhotoPreview?: string;
   }) => {
+    if (isAnalyzingRef.current) return;
+    isAnalyzingRef.current = true;
     setErrorMsg(null);
     setIsAnalyzing(true);
     voice.stop();
@@ -238,6 +241,7 @@ export function PhoneCallOverlay({
         err instanceof Error ? err.message : 'Could not hear clearly. Please try speaking again.'
       );
     } finally {
+      isAnalyzingRef.current = false;
       setIsAnalyzing(false);
     }
   };

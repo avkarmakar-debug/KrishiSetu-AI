@@ -25,6 +25,18 @@ export interface DiagnoseResponsePayload {
   responseTimeMs: number;
 }
 
+export class ApiRequestError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export async function diagnoseCropViaApi(
   payload: DiagnoseRequestPayload
 ): Promise<DiagnoseResponsePayload> {
@@ -34,16 +46,20 @@ export async function diagnoseCropViaApi(
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json().catch(() => ({}));
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    code?: string;
+  };
 
   if (!response.ok) {
-    throw new Error(
-      (data as { error?: string }).error ||
-        'Unable to reach the crop advisor right now. Please try again.'
+    throw new ApiRequestError(
+      data.error || 'Unable to reach the crop advisor right now. Please try again.',
+      response.status,
+      data.code
     );
   }
 
-  return data as DiagnoseResponsePayload;
+  return data as unknown as DiagnoseResponsePayload;
 }
 
 export async function requestTtsAudio(
@@ -56,10 +72,15 @@ export async function requestTtsAudio(
     body: JSON.stringify({ text, language }),
   });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !(data as { audioBase64?: string }).audioBase64) {
-    throw new Error((data as { error?: string }).error || 'TTS failed');
+  const data = (await response.json().catch(() => ({}))) as {
+    audioBase64?: string;
+    mimeType?: string;
+    error?: string;
+    code?: string;
+  };
+  if (!response.ok || !data.audioBase64) {
+    throw new ApiRequestError(data.error || 'TTS failed', response.status, data.code);
   }
 
-  return data as { audioBase64: string; mimeType: string };
+  return { audioBase64: data.audioBase64, mimeType: data.mimeType || 'audio/wav' };
 }
